@@ -1,5 +1,12 @@
 # Лабораторні з реінжинірингу (8×)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=8111402-kai_my-netsdrclient-labs&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=8111402-kai_my-netsdrclient-labs)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=8111402-kai_my-netsdrclient-labs&metric=coverage)](https://sonarcloud.io/summary/new_code?id=8111402-kai_my-netsdrclient-labs)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=8111402-kai_my-netsdrclient-labs&metric=bugs)](https://sonarcloud.io/summary/new_code?id=8111402-kai_my-netsdrclient-labs)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=8111402-kai_my-netsdrclient-labs&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=8111402-kai_my-netsdrclient-labs)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=8111402-kai_my-netsdrclient-labs&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=8111402-kai_my-netsdrclient-labs)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=8111402-kai_my-netsdrclient-labs&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=8111402-kai_my-netsdrclient-labs)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=8111402-kai_my-netsdrclient-labs&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=8111402-kai_my-netsdrclient-labs)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=8111402-kai_my-netsdrclient-labs&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=8111402-kai_my-netsdrclient-labs)
 
 
 Цей репозиторій використовується для курсу **реінжиніринг ПЗ**. 
