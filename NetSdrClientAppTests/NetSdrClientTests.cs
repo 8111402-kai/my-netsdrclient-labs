@@ -1,6 +1,7 @@
 ﻿using Moq;
 using NetSdrClientApp;
 using NetSdrClientApp.Networking;
+using System.IO;
 
 namespace NetSdrClientAppTests;
 
@@ -34,6 +35,46 @@ public class NetSdrClientTests
         _updMock = new Mock<IUdpClient>();
 
         _client = new NetSdrClient(_tcpMock.Object, _updMock.Object);
+    }
+
+    //Тести для покриття
+
+    [Test]
+    public async Task StopIQAsync_NoActiveConnection_PrintsMessage()
+    {
+        // Arrange
+        _tcpMock.Setup(tcp => tcp.Connected).Returns(false);
+        var sw = new StringWriter();
+        var originalOut = Console.Out;
+        Console.SetOut(sw); // Перехоплюємо вивід консолі
+
+        // Act
+        await _client.StopIQAsync();
+
+        // Assert
+        string output = sw.ToString().Trim();
+        Assert.That(output, Does.Contain("No active connection."));
+        
+        // Cleanup
+        Console.SetOut(originalOut);
+    }
+
+    [Test]
+    public async Task ChangeFrequencyAsync_SendsTcpRequest()
+    {
+        // Arrange
+        _tcpMock.Setup(tcp => tcp.Connected).Returns(true);
+        await _client.ConnectAsync(); // Потрібно для SendTcpRequest
+        
+        long hz = 7000000;
+        int channel = 2;
+
+        // Act
+        await _client.ChangeFrequencyAsync(hz, channel);
+
+        // Assert
+        // Перевіряємо, що метод SendMessageAsync був викликаний хоча б раз
+        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.AtLeastOnce());
     }
 
     [Test]
