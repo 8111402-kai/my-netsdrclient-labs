@@ -3,7 +3,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using EchoTcpServerApp.Server; // <--- Вказуємо на наш серверний код
+using EchoTcpServerApp.Server;
 
 namespace EchoTcpServerTests
 {
@@ -17,30 +17,31 @@ namespace EchoTcpServerTests
         [Test]
         public async Task EchoStreamAsync_ShouldEchoBackMessage()
         {
-            // Arrange (Підготовка)
+            // --- Arrange (Підготовка) ---
             var originalMessage = "Hello, World!";
-            var expectedMessage = "Hello, World!"; // Те, що ми очікуємо отримати (повернеться те саме)
+            var messageBytes = Encoding.UTF8.GetBytes(originalMessage);
 
-            // Створюємо "фальшивий" потік даних у пам'яті
+            // Створюємо потік і записуємо туди "вхідні" дані як байти
             var stream = new MemoryStream();
-            
-            // Записуємо наше повідомлення у потік, ніби його прислав клієнт
-            var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
-            await writer.WriteAsync(originalMessage);
-            stream.Position = 0; // "Перемотуємо" потік на початок
+            await stream.WriteAsync(messageBytes, 0, messageBytes.Length);
 
-            // Act (Дія)
-            // Викликаємо нашу тестовану логіку
-            // CancellationToken.None - це "заглушка" для токена
+            // "Перемотуємо" на початок, щоб сервер міг прочитати це як вхідні дані
+            stream.Position = 0;
+
+            // --- Act (Дія) ---
+            // Запускаємо ехо. Воно прочитає дані і допише їх в кінець потоку.
             await EchoServer.EchoStreamAsync(stream, CancellationToken.None);
 
-            // Assert (Перевірка)
-            // "Перемотуємо" потік і читаємо, що в ньому тепер
-            stream.Position = 0;
-            var reader = new StreamReader(stream, Encoding.UTF8);
-            var actualMessage = await reader.ReadToEndAsync();
+            // --- Assert (Перевірка) ---
+            // Тепер у потоці має бути: [Вхідні дані] + [Ехо-відповідь]
             
-            Assert.AreEqual(expectedMessage + originalMessage, actualMessage);
+            // Перемотуємо на початок і читаємо все разом
+            stream.Position = 0;
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            var fullContent = await reader.ReadToEndAsync();
+
+            // Перевіряємо, що повний текст це "Hello, World!" + "Hello, World!"
+            Assert.AreEqual(originalMessage + originalMessage, fullContent);
         }
 
         [Test]
@@ -55,9 +56,9 @@ namespace EchoTcpServerTests
 
             // Assert
             stream.Position = 0;
-            var reader = new StreamReader(stream, Encoding.UTF8);
+            using var reader = new StreamReader(stream, Encoding.UTF8);
             var actualMessage = await reader.ReadToEndAsync();
-            
+
             Assert.AreEqual(string.Empty, actualMessage);
         }
     }
