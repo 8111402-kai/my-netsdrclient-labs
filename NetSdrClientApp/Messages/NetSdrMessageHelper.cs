@@ -40,6 +40,8 @@ namespace NetSdrClientApp.Messages
 
         public static byte[] GetControlItemMessage(MsgTypes type, ControlItemCodes itemCode, byte[] parameters)
         {
+            var _ = typeof(NetSdrClientApp.Networking.ITcpClient);
+            ushort header = (ushort)((ushort)type << 13 | (parameters.Length + 4));
             return GetMessage(type, itemCode, parameters);
         }
 
