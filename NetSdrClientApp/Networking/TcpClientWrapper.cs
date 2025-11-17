@@ -16,8 +16,7 @@ namespace NetSdrClientApp.Networking
         private TcpClient? _tcpClient;
         private NetworkStream? _stream;
 
-        // КРОК 2: Видаляємо поле _cts, оскільки воно тепер у батьківському класі
-        // private CancellationTokenSource _cts; 
+        // КРОК 2: Поле _cts видалено, бо воно є у батьківському класі
 
         public bool Connected => _tcpClient != null && _tcpClient.Connected && _stream != null;
 
@@ -74,11 +73,15 @@ namespace NetSdrClientApp.Networking
             }
         }
 
+        // --- ВИПРАВЛЕННЯ ДУБЛІКАТІВ (КРОК 8) ---
+
+        // 1. Основний метод відправки байтів
         public async Task SendMessageAsync(byte[] data)
         {
             if (Connected && _stream != null && _stream.CanWrite)
             {
-                Console.WriteLine($"Message sent: " + data.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}"));
+                // Логування у шістнадцятковому форматі для зручності
+                Console.WriteLine($"Message sent: " + string.Join(" ", data.Select(b => b.ToString("X2"))));
                 await _stream.WriteAsync(data, 0, data.Length);
             }
             else
@@ -87,19 +90,13 @@ namespace NetSdrClientApp.Networking
             }
         }
 
+        // 2. Цей метод тепер НЕ дублює код, а просто викликає перший метод
         public async Task SendMessageAsync(string str)
         {
             var data = Encoding.UTF8.GetBytes(str);
-            if (Connected && _stream != null && _stream.CanWrite)
-            {
-                Console.WriteLine($"Message sent: " + data.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}"));
-                await _stream.WriteAsync(data, 0, data.Length);
-            }
-            else
-            {
-                throw new InvalidOperationException("Not connected to a server.");
-            }
+            await SendMessageAsync(data);
         }
+        // ----------------------------------------
 
         private async Task StartListeningAsync()
         {
@@ -109,7 +106,7 @@ namespace NetSdrClientApp.Networking
                 {
                     Console.WriteLine($"Starting listening for incomming messages.");
 
-                    // Цей _cts.Token тепер береться з батьківського класу
+                    // _cts береться з батьківського класу
                     while (!_cts.Token.IsCancellationRequested) 
                     {
                         byte[] buffer = new byte[8194];
@@ -121,7 +118,7 @@ namespace NetSdrClientApp.Networking
                         }
                     }
                 }
-                catch (OperationCanceledException) // Цей 'catch' тепер спрацює коректно
+                catch (OperationCanceledException)
                 {
                     //empty
                 }
@@ -140,5 +137,4 @@ namespace NetSdrClientApp.Networking
             }
         }
     }
-
 }
