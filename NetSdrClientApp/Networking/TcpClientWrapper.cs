@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -10,13 +8,16 @@ using System.Threading.Tasks;
 
 namespace NetSdrClientApp.Networking
 {
-    public class TcpClientWrapper : ITcpClient
+    // КРОК 1: Додаємо успадкування від BaseClientWrapper
+    public class TcpClientWrapper : BaseClientWrapper, ITcpClient
     {
         private readonly string _host;
         private readonly int _port;
         private TcpClient? _tcpClient;
         private NetworkStream? _stream;
-        private CancellationTokenSource _cts;
+
+        // КРОК 2: Видаляємо поле _cts, оскільки воно тепер у батьківському класі
+        // private CancellationTokenSource _cts; 
 
         public bool Connected => _tcpClient != null && _tcpClient.Connected && _stream != null;
 
@@ -40,7 +41,8 @@ namespace NetSdrClientApp.Networking
 
             try
             {
-                _cts = new CancellationTokenSource();
+                // КРОК 3: Замінюємо логіку створення _cts на метод з бази
+                ResetCancellationToken(); 
                 _tcpClient.Connect(_host, _port);
                 _stream = _tcpClient.GetStream();
                 Console.WriteLine($"Connected to {_host}:{_port}");
@@ -56,12 +58,12 @@ namespace NetSdrClientApp.Networking
         {
             if (Connected)
             {
-                _cts?.Cancel();
-                _cts?.Dispose();
+                // КРОК 4: Замінюємо логіку зупинки _cts на метод з бази
+                StopCancellationToken();
+                
                 _stream?.Close();
                 _tcpClient?.Close();
 
-                _cts = null;
                 _tcpClient = null;
                 _stream = null;
                 Console.WriteLine("Disconnected.");
@@ -107,7 +109,8 @@ namespace NetSdrClientApp.Networking
                 {
                     Console.WriteLine($"Starting listening for incomming messages.");
 
-                    while (!_cts.Token.IsCancellationRequested)
+                    // Цей _cts.Token тепер береться з батьківського класу
+                    while (!_cts.Token.IsCancellationRequested) 
                     {
                         byte[] buffer = new byte[8194];
 
@@ -118,7 +121,7 @@ namespace NetSdrClientApp.Networking
                         }
                     }
                 }
-                catch (OperationCanceledException ex)
+                catch (OperationCanceledException) // Цей 'catch' тепер спрацює коректно
                 {
                     //empty
                 }
