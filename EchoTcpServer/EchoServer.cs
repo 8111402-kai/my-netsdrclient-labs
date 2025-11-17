@@ -69,7 +69,7 @@ namespace EchoTcpServerApp.Server
         }
 
         // НОВИЙ МЕТОД ДЛЯ ТЕСТІВ
-        // Цей публічний, статичний метод містить *тільки* логіку "ехо".
+        // Цей публічний, статичний метод містить тільки логіку "ехо".
         // Він нічого не знає про TcpClient, тому ми можемо його легко протестувати.
         public static async Task EchoStreamAsync(Stream stream, CancellationToken token)
         {
