@@ -36,9 +36,8 @@ namespace EchoTcpServerApp.Client
             try
             {
                 //dummy data
-                Random rnd = new Random();
                 byte[] samples = new byte[1024];
-                rnd.NextBytes(samples);
+                Random.Shared.NextBytes(samples);
                 i++;
 
                 byte[] msg = (new byte[] { 0x04, 0x84 }).Concat(BitConverter.GetBytes(i)).Concat(samples).ToArray();

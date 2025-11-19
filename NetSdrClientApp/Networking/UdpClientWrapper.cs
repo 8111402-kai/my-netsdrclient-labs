@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 // КРОК 1: Додаємо namespace
@@ -13,9 +10,6 @@ namespace NetSdrClientApp.Networking
     public class UdpClientWrapper : BaseClientWrapper, IUdpClient
     {
         private readonly IPEndPoint _localEndPoint;
-        
-        // КРОК 3: Видаляємо поле _cts, оскільки воно тепер у батьківському класі
-        // private CancellationTokenSource? _cts;
         private UdpClient? _udpClient;
 
         public event EventHandler<byte[]>? MessageReceived;
@@ -71,26 +65,23 @@ namespace NetSdrClientApp.Networking
 
         public void Exit()
         {
-            // КРОК 6: Прибираємо дублювання - цей метод робить те саме, що й StopListening
+            // КРОК 6: Прибираємо дублювання
             StopListening();
         }
 
+        // --- ВИПРАВЛЕННЯ ДЛЯ ЛАБИ 8 ---
+        
         public override int GetHashCode()
         {
-            var payload = $"{nameof(UdpClientWrapper)}|{_localEndPoint.Address}|{_localEndPoint.Port}";
-
-            using var md5 = MD5.Create();
-            var hash = md5.ComputeHash(Encoding.UTF8.GetBytes(payload));
-
-            return BitConverter.ToInt32(hash, 0);
+            // Виправлено Security Hotspot: замість MD5 використовуємо вбудований HashCode
+            return HashCode.Combine(_localEndPoint.Address, _localEndPoint.Port);
         }
 
-        // ВИПРАВЛЕННЯ БАГУ ДЛЯ ЛАБИ 8 (Додаємо Equals) ---
         public override bool Equals(object? obj)
         {
             if (obj is UdpClientWrapper other)
             {
-                // Порівнюємо за адресою та портом (так само, як це робить GetHashCode)
+                // Порівнюємо за адресою та портом
                 return _localEndPoint.Address.Equals(other._localEndPoint.Address) &&
                        _localEndPoint.Port == other._localEndPoint.Port;
             }
