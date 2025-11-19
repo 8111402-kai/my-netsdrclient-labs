@@ -84,5 +84,17 @@ namespace NetSdrClientApp.Networking
 
             return BitConverter.ToInt32(hash, 0);
         }
+
+        // ВИПРАВЛЕННЯ БАГУ ДЛЯ ЛАБИ 8 (Додаємо Equals) ---
+        public override bool Equals(object? obj)
+        {
+            if (obj is UdpClientWrapper other)
+            {
+                // Порівнюємо за адресою та портом (так само, як це робить GetHashCode)
+                return _localEndPoint.Address.Equals(other._localEndPoint.Address) &&
+                       _localEndPoint.Port == other._localEndPoint.Port;
+            }
+            return false;
+        }
     }
 }
