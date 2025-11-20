@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Threading.Tasks;
 
 namespace NetSdrClientApp.Networking
@@ -8,5 +8,6 @@ namespace NetSdrClientApp.Networking
         event EventHandler<byte[]>? MessageReceived;
         Task StartListeningAsync();
         void StopListening();
+        void Exit();
     }
 }
