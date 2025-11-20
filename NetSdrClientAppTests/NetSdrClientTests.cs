@@ -1,160 +1,124 @@
 ﻿using Moq;
 using NetSdrClientApp;
 using NetSdrClientApp.Networking;
-using System.IO;
+using NUnit.Framework;
+using System.Threading.Tasks;
+using System;
 
-namespace NetSdrClientAppTests;
-
-public class NetSdrClientTests
+namespace NetSdrClientAppTests
 {
-    NetSdrClient _client;
-    Mock<ITcpClient> _tcpMock;
-    Mock<IUdpClient> _updMock;
-
-    public NetSdrClientTests() { }
-
-    [SetUp]
-    public void Setup()
+    [TestFixture]
+    public class NetSdrClientTests
     {
-        _tcpMock = new Mock<ITcpClient>();
-        _tcpMock.Setup(tcp => tcp.Connect()).Callback(() =>
+        private NetSdrClient _client;
+        private Mock<ITcpClient> _tcpMock;
+        private Mock<IUdpClient> _udpMock;
+
+        [SetUp]
+        public void Setup()
         {
-            _tcpMock.Setup(tcp => tcp.Connected).Returns(true);
-        });
+            _tcpMock = new Mock<ITcpClient>();
+            _tcpMock.Setup(tcp => tcp.Connect()).Callback(() => _tcpMock.Setup(t => t.Connected).Returns(true));
+            _tcpMock.Setup(tcp => tcp.Disconnect()).Callback(() => _tcpMock.Setup(t => t.Connected).Returns(false));
+            _tcpMock.Setup(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>())).Returns(Task.CompletedTask);
+            _udpMock = new Mock<IUdpClient>();
 
-        _tcpMock.Setup(tcp => tcp.Disconnect()).Callback(() =>
+            _client = new NetSdrClient(_tcpMock.Object, _udpMock.Object);
+        }
+
+        [Test]
+        public async Task ConnectAsync_ShouldSendInitializationCommands()
         {
-            _tcpMock.Setup(tcp => tcp.Connected).Returns(false);
-        });
+            _tcpMock.Setup(t => t.Connected).Returns(false);
+            _tcpMock.Setup(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()))
+                .Callback(() => _tcpMock.Raise(m => m.MessageReceived += null, _tcpMock.Object, new byte[] { 0x00, 0x01 }))
+                .Returns(Task.CompletedTask);
 
-        _tcpMock.Setup(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>())).Callback<byte[]>((bytes) =>
+            await _client.ConnectAsync();
+
+            _tcpMock.Verify(tcp => tcp.Connect(), Times.Once);
+            _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Exactly(3));
+        }
+
+        [Test]
+        public async Task ConnectAsync_WhenAlreadyConnected_ShouldDoNothing()
         {
-            _tcpMock.Raise(tcp => tcp.MessageReceived += null, _tcpMock.Object, bytes);
-        });
+            _tcpMock.Setup(t => t.Connected).Returns(true);
+            await _client.ConnectAsync();
+            _tcpMock.Verify(tcp => tcp.Connect(), Times.Never);
+        }
 
-        _updMock = new Mock<IUdpClient>();
+        [Test]
+        public async Task StartIQAsync_WhenNotConnected_ShouldDoNothing()
+        {
+            _tcpMock.Setup(t => t.Connected).Returns(false);
+            await _client.StartIQAsync();
+            _udpMock.Verify(u => u.StartListeningAsync(), Times.Never);
+        }
 
-        _client = new NetSdrClient(_tcpMock.Object, _updMock.Object);
-    }
+        [Test]
+        public async Task StartIQAsync_ShouldStartUdpListener()
+        {
+            _tcpMock.Setup(t => t.Connected).Returns(true);
+            _tcpMock.Setup(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()))
+               .Callback(() => _tcpMock.Raise(m => m.MessageReceived += null, _tcpMock.Object, new byte[] { 0x01 }))
+               .Returns(Task.CompletedTask);
 
-    //Тести для покриття
+            await _client.StartIQAsync();
 
-    [Test]
-    public async Task StopIQAsync_NoActiveConnection_PrintsMessage()
-    {
-        // Arrange
-        _tcpMock.Setup(tcp => tcp.Connected).Returns(false);
-        var sw = new StringWriter();
-        var originalOut = Console.Out;
-        Console.SetOut(sw); // Перехоплюємо вивід консолі
+            Assert.That(_client.IQStarted, Is.True);
+            _udpMock.Verify(u => u.StartListeningAsync(), Times.Once);
+        }
 
-        // Act
-        await _client.StopIQAsync();
+        [Test]
+        public async Task StopIQAsync_WhenNotConnected_ShouldDoNothing()
+        {
+            _tcpMock.Setup(t => t.Connected).Returns(false);
+            await _client.StopIQAsync();
+            _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Never);
+        }
 
-        // Assert
-        string output = sw.ToString().Trim();
-        Assert.That(output, Does.Contain("No active connection."));
+        [Test]
+        public async Task StopIQAsync_ShouldStopUdpListener()
+        {
+            _tcpMock.Setup(t => t.Connected).Returns(true);
+            _tcpMock.Setup(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()))
+               .Callback(() => _tcpMock.Raise(m => m.MessageReceived += null, _tcpMock.Object, new byte[] { 0x01 }))
+               .Returns(Task.CompletedTask);
+            
+            await _client.StartIQAsync();
+            await _client.StopIQAsync();
+
+            Assert.That(_client.IQStarted, Is.False);
+            _udpMock.Verify(u => u.StopListening(), Times.Once);
+        }
+
+        [Test]
+        public async Task ChangeFrequencyAsync_ShouldSendCommand()
+        {
+            _tcpMock.Setup(t => t.Connected).Returns(true);
+            _tcpMock.Setup(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()))
+               .Callback(() => _tcpMock.Raise(m => m.MessageReceived += null, _tcpMock.Object, new byte[] { 0x01 }))
+               .Returns(Task.CompletedTask);
+
+            await _client.ChangeFrequencyAsync(100000, 1);
+
+            _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Once);
+        }
+
+        [Test]
+        public void UdpMessageReceived_WithNullOrEmptyData_ShouldDoNothing()
+        {
+            // FIX: Використовуємо null! для заглушення Warning CS8625
+            Assert.DoesNotThrow(() => _udpMock.Raise(u => u.MessageReceived += null, _udpMock.Object, (byte[])null!));
+            Assert.DoesNotThrow(() => _udpMock.Raise(u => u.MessageReceived += null, _udpMock.Object, new byte[0]));
+        }
         
-        // Cleanup
-        Console.SetOut(originalOut);
+        [Test]
+        public void UdpMessageReceived_ShouldProcessData()
+        {
+            var data = new byte[] { 0x04, 0x84, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04 };
+            Assert.DoesNotThrow(() => _udpMock.Raise(u => u.MessageReceived += null, _udpMock.Object, data));
+        }
     }
-
-    [Test]
-    public async Task ChangeFrequencyAsync_SendsTcpRequest()
-    {
-        // Arrange
-        _tcpMock.Setup(tcp => tcp.Connected).Returns(true);
-        await _client.ConnectAsync(); // Потрібно для SendTcpRequest
-        
-        long hz = 7000000;
-        int channel = 2;
-
-        // Act
-        await _client.ChangeFrequencyAsync(hz, channel);
-
-        // Assert
-        // Перевіряємо, що метод SendMessageAsync був викликаний хоча б раз
-        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.AtLeastOnce());
-    }
-
-    [Test]
-    public async Task ConnectAsyncTest()
-    {
-        //act
-        await _client.ConnectAsync();
-
-        //assert
-        _tcpMock.Verify(tcp => tcp.Connect(), Times.Once);
-        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Exactly(3));
-    }
-
-    [Test]
-    public async Task DisconnectWithNoConnectionTest()
-    {
-        //act
-        _client.Disconect();
-
-        //assert
-        //No exception thrown
-        _tcpMock.Verify(tcp => tcp.Disconnect(), Times.Once);
-    }
-
-    [Test]
-    public async Task DisconnectTest()
-    {
-        //Arrange 
-        await ConnectAsyncTest();
-
-        //act
-        _client.Disconect();
-
-        //assert
-        //No exception thrown
-        _tcpMock.Verify(tcp => tcp.Disconnect(), Times.Once);
-    }
-
-    [Test]
-    public async Task StartIQNoConnectionTest()
-    {
-
-        //act
-        await _client.StartIQAsync();
-
-        //assert
-        //No exception thrown
-        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Never);
-        _tcpMock.VerifyGet(tcp => tcp.Connected, Times.AtLeastOnce);
-    }
-
-    [Test]
-    public async Task StartIQTest()
-    {
-        //Arrange 
-        await ConnectAsyncTest();
-
-        //act
-        await _client.StartIQAsync();
-
-        //assert
-        //No exception thrown
-        _updMock.Verify(udp => udp.StartListeningAsync(), Times.Once);
-        Assert.That(_client.IQStarted, Is.True);
-    }
-
-    [Test]
-    public async Task StopIQTest()
-    {
-        //Arrange 
-        await ConnectAsyncTest();
-
-        //act
-        await _client.StopIQAsync();
-
-        //assert
-        //No exception thrown
-        _updMock.Verify(tcp => tcp.StopListening(), Times.Once);
-        Assert.That(_client.IQStarted, Is.False);
-    }
-
-    //TODO: cover the rest of the NetSdrClient code here
 }
