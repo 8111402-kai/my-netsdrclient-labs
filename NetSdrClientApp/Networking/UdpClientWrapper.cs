@@ -69,7 +69,6 @@ namespace NetSdrClientApp.Networking
             StopListening();
         }
 
-        // --- ВИПРАВЛЕННЯ ДЛЯ ЛАБИ 8 ---
         
         public override int GetHashCode()
         {
