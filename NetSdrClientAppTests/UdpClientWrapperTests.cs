@@ -3,7 +3,6 @@ using NUnit.Framework;
 using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace NetSdrClientAppTests.Networking
@@ -14,51 +13,44 @@ namespace NetSdrClientAppTests.Networking
         [Test]
         public async Task Integration_ShouldReceiveUdpPackets()
         {
-            // 1. Вибираємо вільний порт
+            // 1. Випадковий порт
             int port = new Random().Next(60000, 65000);
             
-            // 2. Створюємо наш Wrapper (слухач)
+            // 2. Створюємо Wrapper (слухач)
             using var wrapper = new UdpClientWrapper(port);
             
             // 3. Запускаємо прослуховування
             var listenTask = wrapper.StartListeningAsync();
 
-            // 4. Створюємо відправника (UdpClient)
+            // 4. Створюємо відправника
             using var sender = new UdpClient();
             var dataToSend = new byte[] { 1, 2, 3, 4 };
             var endpoint = new IPEndPoint(IPAddress.Loopback, port);
 
-            // Підписуємося на подію отримання
+            // Підписуємося на подію
             var tcs = new TaskCompletionSource<byte[]>();
             wrapper.MessageReceived += (s, e) => tcs.TrySetResult(e);
 
             // 5. Відправляємо дані
             await sender.SendAsync(dataToSend, dataToSend.Length, endpoint);
 
-            // 6. Чекаємо на отримання (з таймаутом)
+            // 6. Чекаємо
             var receivedTask = await Task.WhenAny(tcs.Task, Task.Delay(2000));
 
             if (receivedTask == tcs.Task)
             {
-                var receivedData = tcs.Task.Result;
-                Assert.That(receivedData, Is.EqualTo(dataToSend));
+                Assert.That(tcs.Task.Result, Is.EqualTo(dataToSend));
             }
             else
             {
-                Assert.Fail("Timeout: UDP packet was not received.");
+                Assert.Fail("Timeout receiving UDP packet");
             }
 
-            // 7. Зупинка
+            // 7. Стоп
             wrapper.StopListening();
             
-            try 
-            { 
-                await listenTask; 
-            } 
-            catch (Exception) 
-            { 
-                // Ігноруємо помилки скасування
-            }
+            // Чекаємо завершення таска прослуховування
+            try { await listenTask; } catch {}
         }
 
         [Test]
