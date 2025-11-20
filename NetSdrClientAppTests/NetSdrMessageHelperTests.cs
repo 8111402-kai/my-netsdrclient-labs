@@ -1,4 +1,5 @@
 using NetSdrClientApp.Messages;
+using NUnit.Framework;
 using System;
 using System.Linq;
 
@@ -32,13 +33,14 @@ namespace NetSdrClientAppTests
             var actualCode = BitConverter.ToInt16(codeBytes.ToArray());
 
             //Assert
-            Assert.That(headerBytes.Count(), Is.EqualTo(2));
-            Assert.That(msg.Length, Is.EqualTo(actualLength));
-            Assert.That(type, Is.EqualTo(actualType));
-
-            Assert.That(actualCode, Is.EqualTo((short)code));
-
-            Assert.That(parametersBytes.Count(), Is.EqualTo(parametersLength));
+            Assert.Multiple(() =>
+            {
+                Assert.That(headerBytes.Count(), Is.EqualTo(2));
+                Assert.That(msg, Has.Length.EqualTo(actualLength));
+                Assert.That(actualType, Is.EqualTo(type));
+                Assert.That(actualCode, Is.EqualTo((short)code));
+                Assert.That(parametersBytes.Count(), Is.EqualTo(parametersLength));
+            });
         }
 
         [Test]
@@ -59,11 +61,13 @@ namespace NetSdrClientAppTests
             var actualLength = num - ((int)actualType << 13);
 
             //Assert
-            Assert.That(headerBytes.Count(), Is.EqualTo(2));
-            Assert.That(msg.Length, Is.EqualTo(actualLength));
-            Assert.That(type, Is.EqualTo(actualType));
-
-            Assert.That(parametersBytes.Count(), Is.EqualTo(parametersLength));
+            Assert.Multiple(() =>
+            {
+                Assert.That(headerBytes.Count(), Is.EqualTo(2));
+                Assert.That(msg, Has.Length.EqualTo(actualLength));
+                Assert.That(actualType, Is.EqualTo(type));
+                Assert.That(parametersBytes.Count(), Is.EqualTo(parametersLength));
+            });
         }
 
         // Тести для GetSamples
@@ -76,11 +80,14 @@ namespace NetSdrClientAppTests
             
             var samples = NetSdrMessageHelper.GetSamples(sampleSize, body).ToArray();
             
-            Assert.AreEqual(4, samples.Length);
-            Assert.AreEqual(1, samples[0]);
-            Assert.AreEqual(2, samples[1]);
-            Assert.AreEqual(3, samples[2]);
-            Assert.AreEqual(4, samples[3]);
+            Assert.Multiple(() =>
+            {
+                Assert.That(samples, Has.Length.EqualTo(4));
+                Assert.That(samples[0], Is.EqualTo(1));
+                Assert.That(samples[1], Is.EqualTo(2));
+                Assert.That(samples[2], Is.EqualTo(3));
+                Assert.That(samples[3], Is.EqualTo(4));
+            });
         }
 
         [Test]
@@ -91,9 +98,12 @@ namespace NetSdrClientAppTests
             
             var samples = NetSdrMessageHelper.GetSamples(sampleSize, body).ToArray();
             
-            Assert.AreEqual(2, samples.Length);
-            Assert.AreEqual(1, samples[0]);
-            Assert.AreEqual(2, samples[1]);
+            Assert.Multiple(() =>
+            {
+                Assert.That(samples, Has.Length.EqualTo(2));
+                Assert.That(samples[0], Is.EqualTo(1));
+                Assert.That(samples[1], Is.EqualTo(2));
+            });
         }
 
         [Test]
@@ -104,9 +114,15 @@ namespace NetSdrClientAppTests
             
             var samples = NetSdrMessageHelper.GetSamples(sampleSize, body).ToArray();
             
-            Assert.AreEqual(2, samples.Length);
-            Assert.AreEqual(BitConverter.ToInt32(new byte[] { 1, 2, 3, 0 }, 0), samples[0]);
-            Assert.AreEqual(BitConverter.ToInt32(new byte[] { 4, 5, 6, 0 }, 0), samples[1]);
+            int expectedFirst = BitConverter.ToInt32(new byte[] { 1, 2, 3, 0 }, 0);
+            int expectedSecond = BitConverter.ToInt32(new byte[] { 4, 5, 6, 0 }, 0);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(samples, Has.Length.EqualTo(2));
+                Assert.That(samples[0], Is.EqualTo(expectedFirst));
+                Assert.That(samples[1], Is.EqualTo(expectedSecond));
+            });
         }
 
         [Test]
@@ -115,10 +131,8 @@ namespace NetSdrClientAppTests
             byte[] body = { 1, 2, 3, 4 };
             ushort sampleSize = 40; // Більше 32
             
-            Assert.Throws<ArgumentOutOfRangeException>(() =>
-            {
-                NetSdrMessageHelper.GetSamples(sampleSize, body).ToArray();
-            });
+            Assert.That(() => NetSdrMessageHelper.GetSamples(sampleSize, body).ToArray(), 
+                Throws.TypeOf<ArgumentOutOfRangeException>());
         }
     }
 }

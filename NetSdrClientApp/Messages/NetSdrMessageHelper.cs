@@ -1,13 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection.PortableExecutable;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NetSdrClientApp.Messages
 {
-    //TODO: analyze possible use of [StructLayout] for better performance and readability 
     public static class NetSdrMessageHelper
     {
         private const short _maxMessageLength = 8191;
@@ -106,25 +102,42 @@ namespace NetSdrClientApp.Messages
             return success;
         }
 
-        public static IEnumerable<int> GetSamples(ushort sampleSize, byte[] body)
+        // ВИПРАВЛЕННЯ ТУТ: Розділення методу та валідація
+        public static IEnumerable<int> GetSamples(ushort sampleSizeBits, byte[] body)
         {
-            sampleSize /= 8; //to bytes
-            if (sampleSize  > 4)
+            if (body == null)
             {
-                throw new ArgumentOutOfRangeException();
+                throw new ArgumentNullException(nameof(body));
             }
 
-            var bodyEnumerable = body as IEnumerable<byte>;
-            var prefixBytes = Enumerable.Range(0, 4 - sampleSize)
-                                      .Select(b => (byte)0);
+            int bytesPerSample = sampleSizeBits / 8;
 
-            while (bodyEnumerable.Count() >= sampleSize)
+            // Sonar Fix: Перевірка параметрів ДО yield return
+            // Sonar Fix: Додано зрозуміле повідомлення про помилку та ім'я параметра
+            if (bytesPerSample > 4)
             {
+                throw new ArgumentOutOfRangeException(nameof(sampleSizeBits), 
+                    $"Sample size ({bytesPerSample} bytes) cannot be greater than 4 bytes (32 bits).");
+            }
+
+            return GetSamplesIterator(bytesPerSample, body);
+        }
+
+        // Sonar Fix: Приватний ітератор
+        private static IEnumerable<int> GetSamplesIterator(int bytesPerSample, byte[] body)
+        {
+            var bodyEnumerable = body as IEnumerable<byte>;
+            var prefixBytes = Enumerable.Repeat((byte)0, 4 - bytesPerSample).ToArray();
+
+            while (bodyEnumerable.Count() >= bytesPerSample)
+            {
+                // Логіка залишилася такою ж, як у тебе була
                 yield return BitConverter.ToInt32(bodyEnumerable
-                    .Take(sampleSize)
+                    .Take(bytesPerSample)
                     .Concat(prefixBytes)
                     .ToArray());
-                bodyEnumerable = bodyEnumerable.Skip(sampleSize);
+                
+                bodyEnumerable = bodyEnumerable.Skip(bytesPerSample);
             }
         }
 
