@@ -8,9 +8,9 @@ namespace NetSdrClientApp.Messages
     {
         private const short _maxMessageLength = 8191;
         private const short _maxDataItemMessageLength = 8194;
-        private const short _msgHeaderLength = 2; 
-        private const short _msgControlItemLength = 2; 
-        private const short _msgSequenceNumberLength = 2; 
+        private const short _msgHeaderLength = 2; //2 byte, 16 bit
+        private const short _msgControlItemLength = 2; //2 byte, 16 bit
+        private const short _msgSequenceNumberLength = 2; //2 byte, 16 bit
 
         public enum MsgTypes
         {
@@ -73,12 +73,13 @@ namespace NetSdrClientApp.Messages
             msgEnumarable = msgEnumarable.Skip(_msgHeaderLength);
             msgLength -= _msgHeaderLength;
 
-            if (type < MsgTypes.DataItem0) 
+            if (type < MsgTypes.DataItem0) // get item code
             {
                 var value = BitConverter.ToUInt16(msgEnumarable.Take(_msgControlItemLength).ToArray());
                 msgEnumarable = msgEnumarable.Skip(_msgControlItemLength);
                 msgLength -= _msgControlItemLength;
 
+                // ВИПРАВЛЕНО: Додано (int) перед value
                 if (Enum.IsDefined(typeof(ControlItemCodes), (int)value))
                 {
                     itemCode = (ControlItemCodes)value;
@@ -88,7 +89,7 @@ namespace NetSdrClientApp.Messages
                     success = false;
                 }
             }
-            else 
+            else // get sequenceNumber
             {
                 sequenceNumber = BitConverter.ToUInt16(msgEnumarable.Take(_msgSequenceNumberLength).ToArray());
                 msgEnumarable = msgEnumarable.Skip(_msgSequenceNumberLength);
@@ -96,14 +97,19 @@ namespace NetSdrClientApp.Messages
             }
 
             body = msgEnumarable.ToArray();
+
             success &= body.Length == msgLength;
+
             return success;
         }
 
         public static IEnumerable<int> GetSamples(ushort sampleSizeBits, byte[] body)
         {
-            // Sonar Fix: Use ThrowIfNull
-            ArgumentNullException.ThrowIfNull(body);
+            // Використовуємо перевірку на null, як просив Sonar
+            if (body == null)
+            {
+                throw new ArgumentNullException(nameof(body));
+            }
 
             int bytesPerSample = sampleSizeBits / 8;
 
@@ -136,6 +142,7 @@ namespace NetSdrClientApp.Messages
         {
             int lengthWithHeader = msgLength + 2;
 
+            //Data Items edge case
             if (type >= MsgTypes.DataItem0 && lengthWithHeader == _maxDataItemMessageLength)
             {
                 lengthWithHeader = 0;
