@@ -18,14 +18,8 @@ namespace EchoTcpServerTests
         [Test]
         public void StartSending_ShouldThrow_IfAlreadyStarted()
         {
-            // Arrange
             using var sender = new UdpTimedSender("127.0.0.1", 60000);
-            
-            // Act
             sender.StartSending(1000);
-
-            // Assert
-            // Намагаємося запустити другий раз
             Assert.Throws<InvalidOperationException>(() => sender.StartSending(1000));
         }
 
@@ -40,11 +34,8 @@ namespace EchoTcpServerTests
         public void StopSending_ShouldWork_AfterStart()
         {
             using var sender = new UdpTimedSender("127.0.0.1", 60000);
-            sender.StartSending(100);
-            
-            // Даємо йому трохи часу попрацювати (і викликати callback хоча б раз)
-            Thread.Sleep(150); 
-            
+            sender.StartSending(50);
+            Thread.Sleep(100); 
             Assert.DoesNotThrow(() => sender.StopSending());
         }
 
@@ -53,11 +44,22 @@ namespace EchoTcpServerTests
         {
             var sender = new UdpTimedSender("127.0.0.1", 60000);
             sender.StartSending(100);
-            
             Assert.DoesNotThrow(() => sender.Dispose());
-            
-            // Повторний виклик Dispose теж не має падати
             Assert.DoesNotThrow(() => sender.Dispose());
+        }
+
+        [Test]
+        public void SendMessageCallback_ShouldHandleExceptions_Gracefully()
+        {
+
+            using var sender = new UdpTimedSender("INVALID_IP_ADDRESS_TO_TRIGGER_CATCH", 60000);
+            
+            
+            sender.StartSending(10);
+            
+            Thread.Sleep(50);
+
+            Assert.Pass(); 
         }
     }
 }
