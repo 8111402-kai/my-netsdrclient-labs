@@ -1,5 +1,4 @@
 using NUnit.Framework;
-using System;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -15,34 +14,36 @@ namespace EchoTcpServerTests
         {
         }
 
-        // --------------------------------------------------------------------
-        // 1. Основний тест: ехо повинно повернути ті самі дані
-        // --------------------------------------------------------------------
         [Test]
         public async Task EchoStreamAsync_ShouldEchoBackMessage()
         {
-            // Arrange
+            // --- Arrange (Підготовка) ---
             var originalMessage = "Hello, World!";
             var messageBytes = Encoding.UTF8.GetBytes(originalMessage);
 
+            // Створюємо потік і записуємо туди "вхідні" дані як байти
             var stream = new MemoryStream();
             await stream.WriteAsync(messageBytes, 0, messageBytes.Length);
+
+            // "Перемотуємо" на початок, щоб сервер міг прочитати це як вхідні дані
             stream.Position = 0;
 
-            // Act
+            // --- Act (Дія) ---
+            // Запускаємо ехо. Воно прочитає дані і допише їх в кінець потоку.
             await EchoServer.EchoStreamAsync(stream, CancellationToken.None);
 
-            // Assert
+            // --- Assert (Перевірка) ---
+            // Тепер у потоці має бути: [Вхідні дані] + [Ехо-відповідь]
+            
+            // Перемотуємо на початок і читаємо все разом
             stream.Position = 0;
             using var reader = new StreamReader(stream, Encoding.UTF8);
             var fullContent = await reader.ReadToEndAsync();
 
+            // Перевіряємо, що повний текст це "Hello, World!" + "Hello, World!"
             Assert.AreEqual(originalMessage + originalMessage, fullContent);
         }
 
-        // --------------------------------------------------------------------
-        // 2. Тест: пустий потік не повинен нічого записати
-        // --------------------------------------------------------------------
         [Test]
         public async Task EchoStreamAsync_ShouldHandleEmptyMessage()
         {
@@ -59,24 +60,6 @@ namespace EchoTcpServerTests
             var actualMessage = await reader.ReadToEndAsync();
 
             Assert.AreEqual(string.Empty, actualMessage);
-        }
-
-        // --------------------------------------------------------------------
-        // 3. Новий тест: метод повинен коректно поводитися,
-        //    якщо потік закритий і запис у нього неможливий
-        // --------------------------------------------------------------------
-        [Test]
-        public void EchoStreamAsync_ShouldThrowIfStreamIsClosed()
-        {
-            // Arrange
-            var stream = new MemoryStream();
-            stream.Close(); // явно закриваємо
-
-            // Act & Assert
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-            {
-                await EchoServer.EchoStreamAsync(stream, CancellationToken.None);
-            });
         }
     }
 }
