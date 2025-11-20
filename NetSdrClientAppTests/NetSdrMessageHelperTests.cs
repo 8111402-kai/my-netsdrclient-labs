@@ -22,11 +22,8 @@ namespace NetSdrClientAppTests
             byte[] msg = NetSdrMessageHelper.GetControlItemMessage(type, code, new byte[parametersLength]);
 
             var headerBytes = msg.Take(2);
-            // Calculate expected length explicitly
             var num = BitConverter.ToUInt16(headerBytes.ToArray());
             var actualType = (NetSdrMessageHelper.MsgTypes)(num >> 13);
-            
-            // Length calculation verification
             var expectedLength = num - ((int)actualType << 13);
 
             Assert.Multiple(() =>
@@ -56,39 +53,35 @@ namespace NetSdrClientAppTests
             });
         }
 
-        // --- ВИПРАВЛЕНИЙ ТЕСТ (IndexOutOfRangeException FIX) ---
         [Test]
         public void TranslateMessage_ShouldParseHeaderAndBodyCorrectly()
         {
             // Arrange
             var expectedType = NetSdrMessageHelper.MsgTypes.SetControlItem;
 
-            // FIX 1: Довжина має бути 6 байт:
-            // Header (2) + ItemCode (2) + Body (2) = 6.
+            // Довжина: Header (2) + ItemCode (2) + Body (2) = 6.
             ushort headerValue = (ushort)(((int)expectedType << 13) | 6);
             byte[] headerBytes = BitConverter.GetBytes(headerValue);
             
-            // FIX 2: Додаємо 2 байти для ItemCode, які зчитуються всередині методу
+            // ItemCode placeholder
             byte[] itemCodePlaceholder = { 0x00, 0x00 };
 
-            // Це наше тіло, яке ми хочемо отримати в кінці
+            // Body
             byte[] bodyBytes = { 0xAA, 0xBB };
             
-            // Збираємо повне повідомлення
             byte[] fullMessage = headerBytes
                                  .Concat(itemCodePlaceholder)
                                  .Concat(bodyBytes)
                                  .ToArray();
 
             // Act
-            // FIX 3: Використовуємо правильні змінні для out параметрів
             NetSdrMessageHelper.TranslateMessage(fullMessage, out var type, out var itemCode, out var seqNum, out var body);
 
             // Assert
             Assert.Multiple(() =>
             {
                 Assert.That(type, Is.EqualTo(expectedType));
-                Assert.That(body, Has.Length.EqualTo(2)); // Тепер довжина буде 2, а не 0
+                Assert.That(body, Has.Length.EqualTo(2)); 
                 Assert.That(body[0], Is.EqualTo(0xAA));
                 Assert.That(body[1], Is.EqualTo(0xBB));
             });
@@ -149,6 +142,19 @@ namespace NetSdrClientAppTests
         {
             Assert.That(() => NetSdrMessageHelper.GetSamples(16, null!).ToArray(),
                 Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void GetHeader_ShouldThrowArgumentException_WhenMessageIsTooLong()
+        {
+            // Створюємо масив, який більший за ліміт (8191 байт)
+            var hugeParams = new byte[9000]; 
+            
+            Assert.Throws<ArgumentException>(() => 
+                NetSdrMessageHelper.GetControlItemMessage(
+                    NetSdrMessageHelper.MsgTypes.SetControlItem, 
+                    NetSdrMessageHelper.ControlItemCodes.None, 
+                    hugeParams));
         }
     }
 }
