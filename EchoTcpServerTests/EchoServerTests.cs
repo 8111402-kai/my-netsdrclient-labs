@@ -49,5 +49,21 @@ namespace EchoTcpServerTests
             // Smell fix: Assert.That syntax
             Assert.That(actualMessage, Is.EqualTo(string.Empty));
         }
+
+        [Test]
+        public async Task Stop_ShouldCancelServerLoop_Gracefully()
+        {
+          
+            var server = new EchoServer(0); 
+          
+            var serverTask = server.StartAsync();
+            
+            await Task.Delay(100);
+
+            server.Stop();
+            
+        
+            Assert.DoesNotThrowAsync(async () => await serverTask);
+        }
     }
 }
