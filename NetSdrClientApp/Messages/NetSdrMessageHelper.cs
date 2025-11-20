@@ -79,7 +79,9 @@ namespace NetSdrClientApp.Messages
                 msgEnumarable = msgEnumarable.Skip(_msgControlItemLength);
                 msgLength -= _msgControlItemLength;
 
-                if (Enum.IsDefined(typeof(ControlItemCodes), value))
+                // FIX: Додано (int) перед value. 
+                // Enum.IsDefined вимагає, щоб тип value співпадав з базовим типом Enum (Int32), а не був ushort.
+                if (Enum.IsDefined(typeof(ControlItemCodes), (int)value))
                 {
                     itemCode = (ControlItemCodes)value;
                 }
@@ -102,7 +104,7 @@ namespace NetSdrClientApp.Messages
             return success;
         }
 
-        // ВИПРАВЛЕННЯ ТУТ: Розділення методу та валідація
+        // Розділення методу та валідація (виправлення для SonarCloud)
         public static IEnumerable<int> GetSamples(ushort sampleSizeBits, byte[] body)
         {
             if (body == null)
@@ -112,8 +114,6 @@ namespace NetSdrClientApp.Messages
 
             int bytesPerSample = sampleSizeBits / 8;
 
-            // Sonar Fix: Перевірка параметрів ДО yield return
-            // Sonar Fix: Додано зрозуміле повідомлення про помилку та ім'я параметра
             if (bytesPerSample > 4)
             {
                 throw new ArgumentOutOfRangeException(nameof(sampleSizeBits), 
@@ -123,7 +123,7 @@ namespace NetSdrClientApp.Messages
             return GetSamplesIterator(bytesPerSample, body);
         }
 
-        // Sonar Fix: Приватний ітератор
+        // Приватний ітератор
         private static IEnumerable<int> GetSamplesIterator(int bytesPerSample, byte[] body)
         {
             var bodyEnumerable = body as IEnumerable<byte>;
@@ -131,7 +131,6 @@ namespace NetSdrClientApp.Messages
 
             while (bodyEnumerable.Count() >= bytesPerSample)
             {
-                // Логіка залишилася такою ж, як у тебе була
                 yield return BitConverter.ToInt32(bodyEnumerable
                     .Take(bytesPerSample)
                     .Concat(prefixBytes)
