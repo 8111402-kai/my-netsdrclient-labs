@@ -8,9 +8,9 @@ namespace NetSdrClientApp.Messages
     {
         private const short _maxMessageLength = 8191;
         private const short _maxDataItemMessageLength = 8194;
-        private const short _msgHeaderLength = 2; //2 byte, 16 bit
-        private const short _msgControlItemLength = 2; //2 byte, 16 bit
-        private const short _msgSequenceNumberLength = 2; //2 byte, 16 bit
+        private const short _msgHeaderLength = 2; 
+        private const short _msgControlItemLength = 2; 
+        private const short _msgSequenceNumberLength = 2; 
 
         public enum MsgTypes
         {
@@ -73,14 +73,12 @@ namespace NetSdrClientApp.Messages
             msgEnumarable = msgEnumarable.Skip(_msgHeaderLength);
             msgLength -= _msgHeaderLength;
 
-            if (type < MsgTypes.DataItem0) // get item code
+            if (type < MsgTypes.DataItem0) 
             {
                 var value = BitConverter.ToUInt16(msgEnumarable.Take(_msgControlItemLength).ToArray());
                 msgEnumarable = msgEnumarable.Skip(_msgControlItemLength);
                 msgLength -= _msgControlItemLength;
 
-                // FIX: Додано (int) перед value. 
-                // Enum.IsDefined вимагає, щоб тип value співпадав з базовим типом Enum (Int32), а не був ushort.
                 if (Enum.IsDefined(typeof(ControlItemCodes), (int)value))
                 {
                     itemCode = (ControlItemCodes)value;
@@ -90,7 +88,7 @@ namespace NetSdrClientApp.Messages
                     success = false;
                 }
             }
-            else // get sequenceNumber
+            else 
             {
                 sequenceNumber = BitConverter.ToUInt16(msgEnumarable.Take(_msgSequenceNumberLength).ToArray());
                 msgEnumarable = msgEnumarable.Skip(_msgSequenceNumberLength);
@@ -98,19 +96,14 @@ namespace NetSdrClientApp.Messages
             }
 
             body = msgEnumarable.ToArray();
-
             success &= body.Length == msgLength;
-
             return success;
         }
 
-        // Розділення методу та валідація (виправлення для SonarCloud)
         public static IEnumerable<int> GetSamples(ushort sampleSizeBits, byte[] body)
         {
-            if (body == null)
-            {
-                throw new ArgumentNullException(nameof(body));
-            }
+            // Sonar Fix: Use ThrowIfNull
+            ArgumentNullException.ThrowIfNull(body);
 
             int bytesPerSample = sampleSizeBits / 8;
 
@@ -123,7 +116,6 @@ namespace NetSdrClientApp.Messages
             return GetSamplesIterator(bytesPerSample, body);
         }
 
-        // Приватний ітератор
         private static IEnumerable<int> GetSamplesIterator(int bytesPerSample, byte[] body)
         {
             var bodyEnumerable = body as IEnumerable<byte>;
@@ -144,7 +136,6 @@ namespace NetSdrClientApp.Messages
         {
             int lengthWithHeader = msgLength + 2;
 
-            //Data Items edge case
             if (type >= MsgTypes.DataItem0 && lengthWithHeader == _maxDataItemMessageLength)
             {
                 lengthWithHeader = 0;

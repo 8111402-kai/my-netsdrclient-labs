@@ -1,7 +1,7 @@
 using EchoTcpServerApp.Client;
 using NUnit.Framework;
 using System;
-using System.Threading;
+using System.Threading.Tasks;
 
 namespace EchoTcpServerTests
 {
@@ -31,11 +31,14 @@ namespace EchoTcpServerTests
         }
 
         [Test]
-        public void StopSending_ShouldWork_AfterStart()
+        public async Task StopSending_ShouldWork_AfterStart()
         {
             using var sender = new UdpTimedSender("127.0.0.1", 60000);
             sender.StartSending(50);
-            Thread.Sleep(100); 
+            
+            // Sonar Fix: Use Task.Delay instead of Thread.Sleep
+            await Task.Delay(100); 
+            
             Assert.DoesNotThrow(() => sender.StopSending());
         }
 
@@ -49,15 +52,14 @@ namespace EchoTcpServerTests
         }
 
         [Test]
-        public void SendMessageCallback_ShouldHandleExceptions_Gracefully()
+        public async Task SendMessageCallback_ShouldHandleExceptions_Gracefully()
         {
-
-            using var sender = new UdpTimedSender("INVALID_IP_ADDRESS_TO_TRIGGER_CATCH", 60000);
-            
+            using var sender = new UdpTimedSender("INVALID_IP", 60000);
             
             sender.StartSending(10);
             
-            Thread.Sleep(50);
+            // Sonar Fix: Use Task.Delay instead of Thread.Sleep
+            await Task.Delay(50);
 
             Assert.Pass(); 
         }
