@@ -2,7 +2,7 @@
 using NetSdrClientApp.Networking;
 using System;
 using System.Collections.Generic;
-using System.IO; // Added for FileStream
+using System.IO; 
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -13,7 +13,6 @@ namespace NetSdrClientApp
         private readonly ITcpClient _tcpClient;
         private readonly IUdpClient _udpClient;
         
-        // Smell fix: Nullable TCS
         private TaskCompletionSource<byte[]>? _responseTaskSource;
 
         public bool IQStarted { get; private set; }
@@ -101,18 +100,14 @@ namespace NetSdrClientApp
             await SendTcpRequest(msg);
         }
 
-        private void OnUdpMessageReceived(object? sender, byte[] e)
+        // Sonar Fix: Made static
+        private static void OnUdpMessageReceived(object? sender, byte[] e)
         {
-            
             if (e == null || e.Length == 0) return;
 
             NetSdrMessageHelper.TranslateMessage(e, out _, out _, out _, out byte[] body);
             
-            // Припускаємо 16 біт, бо так в конфігурації
             var samples = NetSdrMessageHelper.GetSamples(16, body);
-
-            // Console output can be slow, consider removing for high performace
-            // Console.WriteLine($"Samples: {body.Length} bytes");
 
             try 
             {
@@ -129,7 +124,6 @@ namespace NetSdrClientApp
             }
         }
 
-        // Smell fix: Return type Task<byte[]?> to allow nulls safely
         private async Task<byte[]?> SendTcpRequest(byte[] msg)
         {
             if (!_tcpClient.Connected)
@@ -143,7 +137,6 @@ namespace NetSdrClientApp
 
             await _tcpClient.SendMessageAsync(msg);
 
-            // Wait for response
             var resp = await responseTask;
             return resp;
         }
@@ -152,10 +145,9 @@ namespace NetSdrClientApp
         {
             if (_responseTaskSource != null)
             {
-                _responseTaskSource.TrySetResult(e); // TrySetResult is safer
+                _responseTaskSource.TrySetResult(e);
                 _responseTaskSource = null;
             }
-            // Console.WriteLine("Response received");
         }
     }
 }

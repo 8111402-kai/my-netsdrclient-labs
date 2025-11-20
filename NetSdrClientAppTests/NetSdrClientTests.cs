@@ -20,7 +20,9 @@ namespace NetSdrClientAppTests
             _tcpMock = new Mock<ITcpClient>();
             _tcpMock.Setup(tcp => tcp.Connect()).Callback(() => _tcpMock.Setup(t => t.Connected).Returns(true));
             _tcpMock.Setup(tcp => tcp.Disconnect()).Callback(() => _tcpMock.Setup(t => t.Connected).Returns(false));
+            
             _tcpMock.Setup(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>())).Returns(Task.CompletedTask);
+            
             _udpMock = new Mock<IUdpClient>();
 
             _client = new NetSdrClient(_tcpMock.Object, _udpMock.Object);
@@ -44,15 +46,20 @@ namespace NetSdrClientAppTests
         public async Task ConnectAsync_WhenAlreadyConnected_ShouldDoNothing()
         {
             _tcpMock.Setup(t => t.Connected).Returns(true);
+            
             await _client.ConnectAsync();
+
             _tcpMock.Verify(tcp => tcp.Connect(), Times.Never);
+            _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Never);
         }
 
         [Test]
         public async Task StartIQAsync_WhenNotConnected_ShouldDoNothing()
         {
             _tcpMock.Setup(t => t.Connected).Returns(false);
+            
             await _client.StartIQAsync();
+
             _udpMock.Verify(u => u.StartListeningAsync(), Times.Never);
         }
 
@@ -109,9 +116,9 @@ namespace NetSdrClientAppTests
         [Test]
         public void UdpMessageReceived_WithNullOrEmptyData_ShouldDoNothing()
         {
-            // FIX: Використовуємо null! для заглушення Warning CS8625
             Assert.DoesNotThrow(() => _udpMock.Raise(u => u.MessageReceived += null, _udpMock.Object, (byte[])null!));
-            Assert.DoesNotThrow(() => _udpMock.Raise(u => u.MessageReceived += null, _udpMock.Object, new byte[0]));
+            // Sonar Fix: Use Array.Empty
+            Assert.DoesNotThrow(() => _udpMock.Raise(u => u.MessageReceived += null, _udpMock.Object, Array.Empty<byte>()));
         }
         
         [Test]
