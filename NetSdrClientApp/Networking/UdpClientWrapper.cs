@@ -35,12 +35,12 @@ namespace NetSdrClientApp.Networking
                     }
                     catch (ObjectDisposedException)
                     {
-                        // Клієнт був закритий - це нормально при зупинці
+                        // Клієнт зупинено
                         break;
                     }
                     catch (SocketException)
                     {
-                        // Помилка сокета - виходимо
+                        // Помилка мережі
                         break;
                     }
                 }
