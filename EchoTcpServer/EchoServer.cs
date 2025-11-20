@@ -11,13 +11,13 @@ namespace EchoTcpServerApp.Server
     public class EchoServer
     {
         private readonly int _port;
-        private TcpListener _listener;
-        private CancellationTokenSource _cancellationTokenSource;
+        private TcpListener? _listener;
+        private readonly CancellationTokenSource _cancellationTokenSource = new();
 
         public EchoServer(int port)
         {
             _port = port;
-            _cancellationTokenSource = new CancellationTokenSource();
+            // _cancellationTokenSource ініціалізовано inline як readonly
         }
 
         public async Task StartAsync()
@@ -33,7 +33,7 @@ namespace EchoTcpServerApp.Server
                     TcpClient client = await _listener.AcceptTcpClientAsync();
                     Console.WriteLine("Client connected.");
 
-                    // Викликаємо приватний обробник
+                    // Викликаємо приватний обробник — тепер static (не використовує стан екземпляра)
                     _ = Task.Run(() => HandleClientAsync(client, _cancellationTokenSource.Token));
                 }
                 catch (ObjectDisposedException)
@@ -41,20 +41,19 @@ namespace EchoTcpServerApp.Server
                     break;
                 }
             }
+
             Console.WriteLine("Server shutdown.");
         }
 
         // Цей приватний метод керує з'єднанням
-        private async Task HandleClientAsync(TcpClient client, CancellationToken token)
+        private static async Task HandleClientAsync(TcpClient client, CancellationToken token)
         {
             using (NetworkStream stream = client.GetStream())
             {
                 try
                 {
-                    // РЕФАКТОРИНГ
-                    // Ми викликаємо нашу нову ТЕСТОВАНУ логіку
+                    // Викликаємо тестовану логіку, яка працює зі Stream
                     await EchoStreamAsync(stream, token);
-                    
                 }
                 catch (Exception ex) when (!(ex is OperationCanceledException))
                 {
@@ -62,34 +61,54 @@ namespace EchoTcpServerApp.Server
                 }
                 finally
                 {
-                    client.Close();
+                    try
+                    {
+                        client.Close();
+                    }
+                    catch { /* ignore */ }
+
                     Console.WriteLine("Client disconnected.");
                 }
             }
         }
 
-        // НОВИЙ МЕТОД ДЛЯ ТЕСТІВ
-        // Цей публічний, статичний метод містить тільки логіку "ехо".
-        // Він нічого не знає про TcpClient, тому ми можемо його легко протестувати.
+        // Публічний метод для тестування логіки ехо
         public static async Task EchoStreamAsync(Stream stream, CancellationToken token)
         {
             byte[] buffer = new byte[8192];
-            int bytesRead;
 
-            while (!token.IsCancellationRequested && (bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token)) > 0)
+            while (!token.IsCancellationRequested)
             {
-                // Echo back the received message
-                await stream.WriteAsync(buffer, 0, bytesRead, token);
+                int bytesRead = await stream.ReadAsync(buffer.AsMemory(), token);
+                if (bytesRead <= 0) break;
+
+                // Echo back the received message (новий overload)
+                await stream.WriteAsync(buffer.AsMemory(0, bytesRead), token);
                 Console.WriteLine($"Echoed {bytesRead} bytes to the client.");
             }
         }
-  
 
         public void Stop()
         {
-            _cancellationTokenSource.Cancel();
-            _listener.Stop();
-            _cancellationTokenSource.Dispose();
+            try
+            {
+                if (!_cancellationTokenSource.IsCancellationRequested)
+                    _cancellationTokenSource.Cancel();
+            }
+            catch { /* ignore */ }
+
+            try
+            {
+                _listener?.Stop();
+            }
+            catch { /* ignore */ }
+
+            try
+            {
+                _cancellationTokenSource.Dispose();
+            }
+            catch { /* ignore */ }
+
             Console.WriteLine("Server stopped.");
         }
     }
