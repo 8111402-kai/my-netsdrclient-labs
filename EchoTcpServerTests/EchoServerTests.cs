@@ -18,7 +18,6 @@ namespace EchoTcpServerTests
             var messageBytes = Encoding.UTF8.GetBytes(originalMessage);
 
             using var stream = new MemoryStream();
-            // Sonar Fix: Use WriteAsync(ReadOnlyMemory) overload (implicit for byte[])
             await stream.WriteAsync(messageBytes);
             stream.Position = 0;
 
@@ -72,14 +71,17 @@ namespace EchoTcpServerTests
                 using var stream = client.GetStream();
 
                 byte[] dataToSend = { 10, 20, 30 };
-                // Sonar Fix
                 await stream.WriteAsync(dataToSend);
 
                 byte[] buffer = new byte[3];
-                var readTask = stream.ReadAsync(buffer); // Sonar Fix: ReadAsync(Memory)
-                var completedTask = await Task.WhenAny(readTask.AsTask(), Task.Delay(2000));
+                
+                // FIX: Зберігаємо Task в змінну, щоб порівнювати посилання
+                var readValueTask = stream.ReadAsync(buffer);
+                var actualReadTask = readValueTask.AsTask();
+                
+                var completedTask = await Task.WhenAny(actualReadTask, Task.Delay(2000));
 
-                if (completedTask == readTask.AsTask())
+                if (completedTask == actualReadTask)
                 {
                     Assert.That(buffer, Is.EqualTo(dataToSend));
                 }
