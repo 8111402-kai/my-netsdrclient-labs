@@ -30,8 +30,16 @@ namespace NetSdrClientApp.Networking
 
         public void Dispose()
         {
-            StopCancellationToken();
+            Dispose(true);
             GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                StopCancellationToken();
+            }
         }
     }
 }
