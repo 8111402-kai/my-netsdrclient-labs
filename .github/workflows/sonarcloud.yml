@@ -1,31 +1,3 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
-# This workflow helps you trigger a SonarCloud analysis of your code and populates
-# GitHub Code Scanning alerts with the vulnerabilities found.
-# Free for open source project.
-
-# 1. Login to SonarCloud.io using your GitHub account
-
-# 2. Import your project on SonarCloud
-#     * Add your GitHub organization first, then add your repository as a new project.
-#     * Please note that many languages are eligible for automatic analysis,
-#       which means that the analysis will start automatically without the need to set up GitHub Actions.
-#     * This behavior can be changed in Administration > Analysis Method.
-#
-# 3. Follow the SonarCloud in-product tutorial
-#     * a. Copy/paste the Project Key and the Organization Key into the args parameter below
-#          (You'll find this information in SonarCloud. Click on "Information" at the bottom left)
-#
-#     * b. Generate a new token and add it to your Github repository's secrets using the name SONAR_TOKEN
-#          (On SonarCloud, click on your avatar on top-right > My account > Security
-#           or go directly to https://sonarcloud.io/account/security/)
-
-# Feel free to take a look at our documentation (https://docs.sonarcloud.io/getting-started/github/)
-# or reach out to our community forum if you need some help (https://community.sonarsource.com/c/help/sc/9)
-
 name: SonarCloud analysis
 
 on:
@@ -51,35 +23,28 @@ jobs:
           dotnet-version: '8.0.x'
 
       # 1) BEGIN: SonarScanner for .NET
+      # FIX: Змінено шлях reportsPaths, щоб шукати ВСІ файли coverage.opencover.xml у підпапках TestResults
       - name: SonarScanner Begin
         run: |
           dotnet tool install --global dotnet-sonarscanner
-          echo "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
-          dotnet sonarscanner begin `
-          /k:"8111402-kai_my-netsdrclient-labs" `
-          /o:"8111402-kai" `
-          /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
-          /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `
-          /d:sonar.coverage.exclusions="**/Program.cs" `
-          /d:sonar.cpd.cs.minimumTokens=40 `
-          /d:sonar.cpd.cs.minimumLines=5 `
-          /d:sonar.exclusions="**/bin/**,**/obj/**,**/sonarcloud.yml,**/Program.cs" `
-          /d:sonar.qualitygate.wait=true
+          dotnet sonarscanner begin /k:"8111402-kai_my-netsdrclient-labs" /o:"8111402-kai" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml" /d:sonar.coverage.exclusions="**/Program.cs" /d:sonar.cpd.cs.minimumTokens=40 /d:sonar.cpd.cs.minimumLines=5 /d:sonar.exclusions="**/bin/**,**/obj/**,**/sonarcloud.yml,**/Program.cs" /d:sonar.qualitygate.wait=true
         shell: pwsh
-      # 2) BUILD & TEST 
+
+      # 2) BUILD
       - name: Restore
         run: dotnet restore NetSdrClient.sln
       - name: Build
         run: dotnet build NetSdrClient.sln -c Release --no-restore
-      - name: Tests with coverage (OpenCover)
+
+      # 3) TESTS with Correct Coverage Collection
+      # FIX: Використовуємо "XPlat Code Coverage". Це створює окремі папки для кожного тесту,
+      # щоб результати не перезаписували один одного.
+      - name: Tests with coverage
         run: |
-          dotnet test NetSdrClient.sln -c Release --no-build `
-            /p:CollectCoverage=true `
-            /p:CoverletOutputFormat=opencover `
-            /p:CoverletOutput="TestResults/coverage.xml" `
-            --logger "junit;LogFilePath=TestResults/junit.xml"
+          dotnet test NetSdrClient.sln -c Release --no-build --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
         shell: pwsh
-      # 3) END: SonarScanner
+
+      # 4) END: SonarScanner
       - name: SonarScanner End
         run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
         shell: pwsh
