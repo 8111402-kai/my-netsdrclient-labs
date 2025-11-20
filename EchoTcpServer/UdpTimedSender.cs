@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 
+// Додаємо namespace
 namespace EchoTcpServerApp.Client
 {
     public class UdpTimedSender : IDisposable
@@ -11,8 +12,7 @@ namespace EchoTcpServerApp.Client
         private readonly string _host;
         private readonly int _port;
         private readonly UdpClient _udpClient;
-        private Timer? _timer;
-        private bool _disposed = false;
+        private Timer _timer;
 
         public UdpTimedSender(string host, int port)
         {
@@ -31,10 +31,11 @@ namespace EchoTcpServerApp.Client
 
         ushort i = 0;
 
-        private void SendMessageCallback(object? state) // object? state
+        private void SendMessageCallback(object state)
         {
             try
             {
+                //dummy data
                 byte[] samples = new byte[1024];
                 Random.Shared.NextBytes(samples);
                 i++;
@@ -65,14 +66,10 @@ namespace EchoTcpServerApp.Client
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!_disposed)
+            if (disposing)
             {
-                if (disposing)
-                {
-                    StopSending();
-                    _udpClient.Dispose();
-                }
-                _disposed = true;
+                StopSending();
+                _udpClient.Dispose();
             }
         }
     }

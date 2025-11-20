@@ -5,8 +5,7 @@ namespace NetSdrClientApp.Networking
 {
     public abstract class BaseClientWrapper : IDisposable
     {
-        protected CancellationTokenSource? _cts;
-        private bool _disposed = false;
+        protected CancellationTokenSource _cts;
 
         protected BaseClientWrapper()
         {
@@ -37,14 +36,9 @@ namespace NetSdrClientApp.Networking
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!_disposed)
+            if (disposing)
             {
-                if (disposing)
-                {
-                    // Звільняємо керовані ресурси
-                    StopCancellationToken();
-                }
-                _disposed = true;
+                StopCancellationToken();
             }
         }
     }
