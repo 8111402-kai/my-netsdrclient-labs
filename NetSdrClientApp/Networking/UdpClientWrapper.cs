@@ -1,91 +1,72 @@
 ﻿using System;
-using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 
-// КРОК 1: Додаємо namespace
 namespace NetSdrClientApp.Networking
 {
-    // КРОК 2: Додаємо успадкування від BaseClientWrapper
-    public class UdpClientWrapper : BaseClientWrapper, IUdpClient
+    public class UdpClientWrapper : IUdpClient, IDisposable
     {
-        private readonly IPEndPoint _localEndPoint;
+        private readonly int _port;
         private UdpClient? _udpClient;
+        private bool _isListening;
 
         public event EventHandler<byte[]>? MessageReceived;
 
         public UdpClientWrapper(int port)
         {
-            _localEndPoint = new IPEndPoint(IPAddress.Any, port);
+            _port = port;
         }
 
         public async Task StartListeningAsync()
         {
-            // КРОК 4: Замінюємо логіку створення _cts на метод з бази
-            ResetCancellationToken();
-            Console.WriteLine("Start listening for UDP messages...");
+            if (_isListening) return;
 
             try
             {
-                _udpClient = new UdpClient(_localEndPoint);
-                
-                // Цей _cts.Token тепер береться з батьківського класу
-                while (!_cts.Token.IsCancellationRequested)
-                {
-                    UdpReceiveResult result = await _udpClient.ReceiveAsync(_cts.Token);
-                    MessageReceived?.Invoke(this, result.Buffer);
+                _udpClient = new UdpClient(_port);
+                _isListening = true;
 
-                    Console.WriteLine($"Received from {result.RemoteEndPoint}");
+                while (_isListening && _udpClient != null)
+                {
+                    try
+                    {
+                        var result = await _udpClient.ReceiveAsync();
+                        MessageReceived?.Invoke(this, result.Buffer);
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Клієнт був закритий - це нормально при зупинці
+                        break;
+                    }
+                    catch (SocketException)
+                    {
+                        // Помилка сокета - виходимо
+                        break;
+                    }
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                //empty
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error receiving message: {ex.Message}");
+                Console.WriteLine($"UDP Listener error: {ex.Message}");
+            }
+            finally
+            {
+                _isListening = false;
             }
         }
 
         public void StopListening()
         {
-            try
-            {
-                // КРОК 5: Замінюємо логіку зупинки _cts на метод з бази
-                StopCancellationToken();
-                _udpClient?.Close();
-                Console.WriteLine("Stopped listening for UDP messages.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error while stopping: {ex.Message}");
-            }
+            _isListening = false;
+            _udpClient?.Close();
+            _udpClient?.Dispose();
+            _udpClient = null;
         }
 
-        public void Exit()
+        public void Dispose()
         {
-            // КРОК 6: Прибираємо дублювання
             StopListening();
-        }
-
-        // --- ВИПРАВЛЕННЯ ДЛЯ ЛАБИ 8 ---
-        
-        public override int GetHashCode()
-        {
-            // Виправлено Security Hotspot: замість MD5 використовуємо вбудований HashCode
-            return HashCode.Combine(_localEndPoint.Address, _localEndPoint.Port);
-        }
-
-        public override bool Equals(object? obj)
-        {
-            if (obj is UdpClientWrapper other)
-            {
-                // Порівнюємо за адресою та портом
-                return _localEndPoint.Address.Equals(other._localEndPoint.Address) &&
-                       _localEndPoint.Port == other._localEndPoint.Port;
-            }
-            return false;
+            GC.SuppressFinalize(this);
         }
     }
 }
