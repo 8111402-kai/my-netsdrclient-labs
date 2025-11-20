@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 
 namespace NetSdrClientApp.Networking
 {
-    // Ми реалізуємо інтерфейс напряму, щоб уникнути помилок у BaseClientWrapper
     public class TcpClientWrapper : ITcpClient, IDisposable
     {
         private TcpClient? _client;
@@ -36,12 +35,10 @@ namespace NetSdrClientApp.Networking
                 _stream = _client.GetStream();
                 _cts = new CancellationTokenSource();
 
-                // Запускаємо цикл читання у фоні
                 _ = Task.Run(() => ReceiveLoop(_cts.Token));
             }
             catch (Exception)
             {
-                // Якщо не вдалося підключитися - чистимо ресурси
                 Disconnect();
                 throw;
             }
@@ -73,7 +70,7 @@ namespace NetSdrClientApp.Networking
 
         public async Task SendMessageAsync(byte[] data)
         {
-            // FIX: Перевірка на null і Connected, щоб уникнути InvalidOperationException у тестах
+            // FIX: Перевірка, щоб не кидати помилку, якщо з'єднання розірвано
             if (_client == null || !Connected || _stream == null) 
             {
                 return; 
@@ -85,7 +82,7 @@ namespace NetSdrClientApp.Networking
             }
             catch (Exception)
             {
-                // Ігноруємо помилки запису при розриві з'єднання
+                // Ігноруємо помилки запису
             }
         }
 
@@ -97,17 +94,16 @@ namespace NetSdrClientApp.Networking
                 try
                 {
                     int bytesRead = await _stream.ReadAsync(buffer, token);
-                    if (bytesRead == 0) break; // З'єднання закрито
+                    if (bytesRead == 0) break;
 
                     var receivedData = new byte[bytesRead];
                     Array.Copy(buffer, receivedData, bytesRead);
                     
-                    // Викликаємо подію безпечно
                     MessageReceived?.Invoke(this, receivedData);
                 }
                 catch
                 {
-                    break; // Виходимо з циклу при помилці (наприклад, скасування токена)
+                    break;
                 }
             }
             Disconnect();
