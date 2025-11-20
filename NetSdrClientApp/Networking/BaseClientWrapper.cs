@@ -5,27 +5,42 @@ namespace NetSdrClientApp.Networking
 {
     public abstract class BaseClientWrapper : IDisposable
     {
-        protected CancellationTokenSource _cts;
+        // Робимо nullable, щоб уникнути null-reference
+        protected CancellationTokenSource? _cts;
 
-        protected BaseClientWrapper()
-        {
-            _cts = new CancellationTokenSource();
-        }
+        // Безпечний доступ до токена
+        protected CancellationToken Token => _cts?.Token ?? CancellationToken.None;
 
         protected void ResetCancellationToken()
         {
-            if (_cts != null)
-            {
-                _cts.Cancel();
-                _cts.Dispose();
-            }
+            // Перед створенням нового, безпечно чистимо старий
+            Cancel(); 
+            _cts?.Dispose();
             _cts = new CancellationTokenSource();
         }
 
+        protected void Cancel()
+        {
+            if (_cts != null)
+            {
+                try
+                {
+                    if (!_cts.IsCancellationRequested)
+                    {
+                        _cts.Cancel();
+                    }
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Ігноруємо, якщо об'єкт вже видалений. Це нормально.
+                }
+            }
+        }
+
+        // Цей метод фігурував у твоєму стектрейсі, залишаємо його як обгортку
         protected void StopCancellationToken()
         {
-            _cts?.Cancel();
-            _cts?.Dispose();
+            Cancel();
         }
 
         public void Dispose()
@@ -38,7 +53,10 @@ namespace NetSdrClientApp.Networking
         {
             if (disposing)
             {
-                StopCancellationToken();
+                // Безпечно зупиняємо і видаляємо
+                Cancel();
+                _cts?.Dispose();
+                _cts = null;
             }
         }
     }
